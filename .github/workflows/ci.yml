@@ -34,3 +34,52 @@ jobs:
 
       - name: Pytest
         run: pytest
+
+  conformance:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with: { path: adapter }
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with: { python-version: "3.11" }
+
+      - name: Install adapter
+        run: pip install -e adapter
+      - name: Install cosign for adapter
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003
+        with: { cosign-release: "v3.0.6" }
+
+      - name: Run conformance
+        id: conformance
+        continue-on-error: true
+        uses: wtlinnertz/aieos-governance-foundation/.github/actions/run-conformance@main
+        with:
+          adapter-id: adapter-cosign-sign
+          adapter-version: "1.0.0"
+          python-import: "from aieos_adapter_cosign_sign import SignArtifactAdapter as AdapterClass"
+          suite-name: sign.artifact-suite
+          signing-identity: "https://github.com/${{ github.repository }}/.github/workflows/ci.yml@refs/heads/main"
+          output-path: attestation.json
+
+      - name: Install cosign
+        if: steps.conformance.outcome == 'success'
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003
+        with: { cosign-release: "v3.0.6" }
+
+      - name: Sign attestation (keyless OIDC)
+        if: steps.conformance.outcome == 'success'
+        run: cosign sign-blob --bundle attestation.sigstore.json --yes attestation.json
+
+      - name: Upload signed attestation
+        if: steps.conformance.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: conformance-attestation
+          path: |
+            attestation.json
+            attestation.sigstore.json

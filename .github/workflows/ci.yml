@@ -35,6 +35,9 @@ jobs:
       - name: Pytest
         run: pytest
 
+  # Multi-capability adapter (per plan §M4a.4): two contracts, two
+  # separate conformance runs, two separate signed attestations. Both
+  # uploaded as workflow artifacts.
   conformance:
     needs: lint-and-test
     runs-on: ubuntu-latest
@@ -50,12 +53,14 @@ jobs:
 
       - name: Install adapter
         run: pip install -e adapter
+
       - name: Install cosign for adapter
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003
         with: { cosign-release: "v3.0.6" }
 
-      - name: Run conformance
-        id: conformance
+      # ---- sign.artifact contract ----
+      - name: Run conformance — sign.artifact
+        id: conformance_sign_artifact
         continue-on-error: true
         uses: wtlinnertz/aieos-governance-foundation/.github/actions/run-conformance@main
         with:
@@ -64,22 +69,37 @@ jobs:
           python-import: "from aieos_adapter_cosign_sign import SignArtifactAdapter as AdapterClass"
           suite-name: sign.artifact-suite
           signing-identity: "https://github.com/${{ github.repository }}/.github/workflows/ci.yml@refs/heads/main"
-          output-path: attestation.json
+          output-path: attestation-sign-artifact.json
 
-      - name: Install cosign
-        if: steps.conformance.outcome == 'success'
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003
-        with: { cosign-release: "v3.0.6" }
+      - name: Sign sign.artifact attestation (keyless OIDC)
+        if: steps.conformance_sign_artifact.outcome == 'success'
+        run: cosign sign-blob --bundle attestation-sign-artifact.sigstore.json --yes attestation-sign-artifact.json
 
-      - name: Sign attestation (keyless OIDC)
-        if: steps.conformance.outcome == 'success'
-        run: cosign sign-blob --bundle attestation.sigstore.json --yes attestation.json
+      # ---- sign.attestation contract ----
+      - name: Run conformance — sign.attestation
+        id: conformance_sign_attestation
+        continue-on-error: true
+        uses: wtlinnertz/aieos-governance-foundation/.github/actions/run-conformance@main
+        with:
+          adapter-id: adapter-cosign-sign
+          adapter-version: "1.0.0"
+          python-import: "from aieos_adapter_cosign_sign import SignAttestationAdapter as AdapterClass"
+          suite-name: sign.attestation-suite
+          signing-identity: "https://github.com/${{ github.repository }}/.github/workflows/ci.yml@refs/heads/main"
+          output-path: attestation-sign-attestation.json
 
-      - name: Upload signed attestation
-        if: steps.conformance.outcome == 'success'
+      - name: Sign sign.attestation attestation (keyless OIDC)
+        if: steps.conformance_sign_attestation.outcome == 'success'
+        run: cosign sign-blob --bundle attestation-sign-attestation.sigstore.json --yes attestation-sign-attestation.json
+
+      # ---- upload both attestations as a single artifact bundle ----
+      - name: Upload signed attestations
+        if: steps.conformance_sign_artifact.outcome == 'success' || steps.conformance_sign_attestation.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: conformance-attestation
+          name: conformance-attestations
           path: |
-            attestation.json
-            attestation.sigstore.json
+            attestation-sign-artifact.json
+            attestation-sign-artifact.sigstore.json
+            attestation-sign-attestation.json
+            attestation-sign-attestation.sigstore.json

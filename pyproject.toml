@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aieos-adapter-cosign-sign"
-version = "1.0.0"
+version = "1.0.1"
 description = "AIEOS adapter: sign.artifact and sign.attestation via cosign (multi-capability)"
 readme = "README.md"
 license = { file = "LICENSE" }

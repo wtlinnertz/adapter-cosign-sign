@@ -76,9 +76,12 @@ def _cosign_sign_blob(
         # oci-signing-bundle schema models; the legacy --bundle output
         # ({base64Signature, rekorBundle}) does not validate against it.
         cmd = [
-            cosign_binary, "sign-blob",
+            cosign_binary,
+            "sign-blob",
             "--new-bundle-format",
-            "--bundle", str(bundle_path), "--yes",
+            "--bundle",
+            str(bundle_path),
+            "--yes",
         ]
         if mode == "key":
             cmd.extend(["--key", value])

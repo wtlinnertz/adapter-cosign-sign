@@ -71,7 +71,15 @@ def _cosign_sign_blob(
     with tempfile.NamedTemporaryFile(mode="w", suffix=".sigstore.json", delete=False) as bundle_tmp:
         bundle_path = Path(bundle_tmp.name)
     try:
-        cmd = [cosign_binary, "sign-blob", "--bundle", str(bundle_path), "--yes"]
+        # --new-bundle-format emits the Sigstore protobuf bundle
+        # (mediaType/verificationMaterial/messageSignature) that the AIEOS
+        # oci-signing-bundle schema models; the legacy --bundle output
+        # ({base64Signature, rekorBundle}) does not validate against it.
+        cmd = [
+            cosign_binary, "sign-blob",
+            "--new-bundle-format",
+            "--bundle", str(bundle_path), "--yes",
+        ]
         if mode == "key":
             cmd.extend(["--key", value])
         # ambient / oidc modes rely on the execution environment providing OIDC.

@@ -61,7 +61,6 @@ jobs:
       # ---- sign.artifact contract ----
       - name: Run conformance — sign.artifact
         id: conformance_sign_artifact
-        continue-on-error: true
         uses: wtlinnertz/aieos-governance-foundation/.github/actions/run-conformance@main
         with:
           adapter-id: adapter-cosign-sign
@@ -78,7 +77,6 @@ jobs:
       # ---- sign.attestation contract ----
       - name: Run conformance — sign.attestation
         id: conformance_sign_attestation
-        continue-on-error: true
         uses: wtlinnertz/aieos-governance-foundation/.github/actions/run-conformance@main
         with:
           adapter-id: adapter-cosign-sign
